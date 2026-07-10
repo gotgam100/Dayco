@@ -32,22 +32,26 @@ struct DDayDetailView: View {
                 .padding(.vertical, 12)
             }
 
-            Section("계산 방식") {
-                LabeledContent("유형", value: item.type.title)
-                LabeledContent("표시 단위", value: item.displayUnit.title)
+            Section(DaycoText.t("계산 방식")) {
+                LabeledContent(DaycoText.t("유형"), value: item.type.title)
+                LabeledContent(DaycoText.t("표시 단위"), value: item.displayUnit.title)
 
                 if item.type == .recurring {
-                    LabeledContent("반복", value: item.repeatRule?.title ?? RepeatRule.yearly.title)
+                    LabeledContent(DaycoText.t("반복"), value: item.repeatRule?.title ?? RepeatRule.yearly.title)
+                }
+
+                if item.type == .milestone {
+                    LabeledContent(DaycoText.t("기념일"), value: MilestoneDay.title(for: item.milestoneDayValue))
                 }
 
                 if item.type == .countUp {
-                    LabeledContent("시작일 포함", value: item.countStartAsDayOne ? "켬" : "끔")
+                    LabeledContent(DaycoText.t("시작일 포함"), value: item.countStartAsDayOne ? DaycoText.t("켬") : DaycoText.t("끔"))
                 }
             }
 
-            Section("알림") {
+            Section(DaycoText.t("알림")) {
                 if item.notificationRules.isEmpty {
-                    Text("설정된 알림 없음")
+                    Text(DaycoText.t("설정된 알림 없음"))
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(item.notificationRules) { rule in
@@ -56,26 +60,19 @@ struct DDayDetailView: View {
                 }
             }
 
-            Section("공유") {
-                LabeledContent("상태", value: item.isShared ? "공유 중" : "개인 디데이")
-                if let permission = item.sharePermission {
-                    LabeledContent("권한", value: permission.title)
-                }
-            }
-
             Section {
                 Button(role: .destructive) {
                     isConfirmingDelete = true
                 } label: {
-                    Label("삭제", systemImage: "trash")
+                    Label(DaycoText.t("삭제"), systemImage: "trash")
                 }
             }
         }
-        .navigationTitle("상세")
+        .navigationTitle(DaycoText.t("상세"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("편집") {
+                Button(DaycoText.t("편집")) {
                     isPresentingEditor = true
                 }
             }
@@ -83,14 +80,14 @@ struct DDayDetailView: View {
         .sheet(isPresented: $isPresentingEditor) {
             DDayEditorView(item: item)
         }
-        .alert("삭제하시겠습니까?", isPresented: $isConfirmingDelete) {
-            Button("취소", role: .cancel) {}
-            Button("삭제", role: .destructive) {
+        .alert(DaycoText.t("삭제하시겠습니까?"), isPresented: $isConfirmingDelete) {
+            Button(DaycoText.t("취소"), role: .cancel) {}
+            Button(DaycoText.t("삭제"), role: .destructive) {
                 modelContext.delete(item)
                 dismiss()
             }
         } message: {
-            Text("이 디데이는 복구할 수 없습니다.")
+            Text(DaycoText.t("이 디데이는 복구할 수 없습니다."))
         }
     }
 }

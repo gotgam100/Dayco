@@ -21,21 +21,29 @@ struct DDayCalculator {
             let elapsedDays = -rawDayDelta + (item.countStartAsDayOne ? 1 : 0)
             return DDayCalculation(
                 valueText: format(abs(elapsedDays), unit: item.displayUnit, suffix: "째", from: startOfTarget, to: startOfNow),
-                caption: "\(formattedDate(startOfTarget))부터",
+                caption: DaycoText.language == .english ? "Since \(formattedDate(startOfTarget))" : "\(formattedDate(startOfTarget))부터",
                 targetDate: startOfTarget,
                 dayDelta: elapsedDays
             )
         case .countDown:
             return DDayCalculation(
                 valueText: rawDayDelta == 0 ? "D-Day" : "D-\(max(rawDayDelta, 0))",
-                caption: "\(formattedDate(startOfTarget))까지",
+                caption: DaycoText.language == .english ? "Until \(formattedDate(startOfTarget))" : "\(formattedDate(startOfTarget))까지",
                 targetDate: startOfTarget,
                 dayDelta: rawDayDelta
             )
         case .recurring:
             return DDayCalculation(
-                valueText: rawDayDelta == 0 ? "오늘" : "D-\(rawDayDelta)",
-                caption: "다음 \(item.repeatRule?.title ?? "반복")",
+                valueText: rawDayDelta == 0 ? DaycoText.t("오늘") : "D-\(rawDayDelta)",
+                caption: DaycoText.language == .english ? "Next \(item.repeatRule?.title ?? DaycoText.t("반복"))" : "다음 \(item.repeatRule?.title ?? DaycoText.t("반복"))",
+                targetDate: startOfTarget,
+                dayDelta: rawDayDelta
+            )
+        case .milestone:
+            let milestoneDay = item.milestoneDayValue
+            return DDayCalculation(
+                valueText: milestoneValueText(for: rawDayDelta),
+                caption: DaycoText.language == .english ? "\(MilestoneDay.title(for: milestoneDay)) Anniversary" : "\(MilestoneDay.title(for: milestoneDay)) 기념일",
                 targetDate: startOfTarget,
                 dayDelta: rawDayDelta
             )
@@ -43,6 +51,10 @@ struct DDayCalculator {
     }
 
     func resolvedTargetDate(for item: DDayItem, now: Date = .now) -> Date {
+        if item.type == .milestone {
+            return milestoneDate(from: item.date, milestoneDay: item.milestoneDayValue, countStartAsDayOne: item.countStartAsDayOne)
+        }
+
         guard item.type == .recurring else {
             return item.date
         }
@@ -55,18 +67,39 @@ struct DDayCalculator {
         }
     }
 
+    func milestoneDate(from date: Date, milestoneDay: Int, countStartAsDayOne: Bool) -> Date {
+        let startDate = calendar.startOfDay(for: date)
+        let offset = max(milestoneDay, 1) - (countStartAsDayOne ? 1 : 0)
+        return calendar.date(byAdding: .day, value: max(offset, 0), to: startDate) ?? startDate
+    }
+
+    private func milestoneValueText(for rawDayDelta: Int) -> String {
+        if rawDayDelta == 0 {
+            return DaycoText.t("오늘")
+        }
+
+        if rawDayDelta < 0 {
+            return "D+\((-rawDayDelta).formatted())"
+        }
+
+        return "D-\(rawDayDelta.formatted())"
+    }
+
     private func format(_ days: Int, unit: DisplayUnit, suffix: String, from start: Date, to end: Date) -> String {
         switch unit {
         case .days:
-            return "\(days.formatted())일\(suffix)"
+            return DaycoText.language == .english ? "\(days.formatted()) days" : "\(days.formatted())일\(suffix)"
         case .hours:
-            return "\((days * 24).formatted())시간\(suffix)"
+            return DaycoText.language == .english ? "\((days * 24).formatted()) hours" : "\((days * 24).formatted())시간\(suffix)"
         case .minutes:
-            return "\((days * 24 * 60).formatted())분\(suffix)"
+            return DaycoText.language == .english ? "\((days * 24 * 60).formatted()) minutes" : "\((days * 24 * 60).formatted())분\(suffix)"
         case .daysAndHours:
-            return "\(days.formatted())일 0시간\(suffix)"
+            return DaycoText.language == .english ? "\(days.formatted()) days 0 hours" : "\(days.formatted())일 0시간\(suffix)"
         case .yearsMonthsDays:
             let components = calendar.dateComponents([.year, .month, .day], from: start, to: end)
+            if DaycoText.language == .english {
+                return "\(components.year ?? 0)y \(components.month ?? 0)m \(components.day ?? 0)d"
+            }
             return "\(components.year ?? 0)년 \(components.month ?? 0)개월 \(components.day ?? 0)일\(suffix)"
         }
     }
@@ -109,6 +142,6 @@ struct DDayCalculator {
     }
 
     private func formattedDate(_ date: Date) -> String {
-        date.formatted(.dateTime.year().month(.twoDigits).day(.twoDigits))
+        date.formatted(.dateTime.locale(Locale(identifier: DaycoText.language.localeIdentifier)).year().month(.twoDigits).day(.twoDigits))
     }
 }

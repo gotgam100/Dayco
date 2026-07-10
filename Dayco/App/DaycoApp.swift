@@ -4,7 +4,9 @@ import SwiftUI
 
 @main
 struct DaycoApp: App {
+    @UIApplicationDelegateAdaptor(DaycoCloudShareAcceptor.self) private var cloudShareAcceptor
     @AppStorage("appAppearance") private var appAppearanceRawValue = AppAppearance.system.rawValue
+    @AppStorage("appLanguage") private var appLanguageRawValue = DaycoLanguage.korean.rawValue
 
     var sharedModelContainer: ModelContainer = {
         if let applicationSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
@@ -32,11 +34,16 @@ struct DaycoApp: App {
         WindowGroup {
             DDayListView()
                 .preferredColorScheme(appAppearance.colorScheme)
+                .environment(\.locale, Locale(identifier: appLanguage.localeIdentifier))
         }
         .modelContainer(sharedModelContainer)
     }
 
     private var appAppearance: AppAppearance {
         AppAppearance(rawValue: appAppearanceRawValue) ?? .system
+    }
+
+    private var appLanguage: DaycoLanguage {
+        DaycoLanguage(rawValue: appLanguageRawValue) ?? .korean
     }
 }

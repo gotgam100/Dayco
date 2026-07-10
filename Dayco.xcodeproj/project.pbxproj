@@ -9,16 +9,23 @@
 /* Begin PBXBuildFile section */
 		193D4D8972EDE47E4C4EB945 /* DaycoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390C7296FD35CC9864A03B9C /* DaycoApp.swift */; };
 		1C8C94C8102E09D399049BBD /* DaycoPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86583744C7080C5710F4AD61 /* DaycoPalette.swift */; };
+		3AEFCDEA3E0BB30B9D99C694 /* DaycoWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A92812BFDB0AA87D14A007 /* DaycoWidget.swift */; };
 		41C7FD18B5109240561FF327 /* DDayEnums.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666050DC6FF99F56295CD9B8 /* DDayEnums.swift */; };
+		423FCFBDEC2366DE02933E95 /* DaycoWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C79ED235205F46213DF9BC5C /* DaycoWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		48BEB65093FD98EAE033BB59 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F21FE631B206EE09AC42056 /* SettingsView.swift */; };
+		4B948BDB14D58F3639BCD5DF /* WidgetSnapshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3992B39D169BFCF0D7CD9254 /* WidgetSnapshotService.swift */; };
+		51EFC951C33875C81E0EF23C /* DaycoWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = E554CA69F220706AA1575164 /* DaycoWidgetData.swift */; };
 		55E85D45B94A77C27105BC99 /* DDayItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7063D4F119D457C348CE61D1 /* DDayItem.swift */; };
+		67C07DA44F5B9FB9882CAFAD /* DaycoWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = E554CA69F220706AA1575164 /* DaycoWidgetData.swift */; };
 		694FC035393D0E077209C622 /* DDayDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B3D26DF779F0797F70602F7 /* DDayDetailView.swift */; };
 		877AD1D5D967F22BD63F4132 /* DDayListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9315056695873D7F72080D44 /* DDayListView.swift */; };
 		884220ACC243C261226BC01E /* DDayCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5F4C40FC4400F32E9EA26F8 /* DDayCalculatorTests.swift */; };
+		A8CEA67DCB29D571D895E4F3 /* DaycoLocalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498C6317B6BF90D9D5D59C17 /* DaycoLocalization.swift */; };
 		BEC86FD31B1CBA5E98B25333 /* DDayEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E1544E365201D125055D52 /* DDayEditorView.swift */; };
 		CA17802A6817B28D5946CCD1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 43F599294B4C1DC23C7DE15A /* Assets.xcassets */; };
 		DBF6958776D55E255054F2D9 /* DDayCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014A4955C41745756EDC8F45 /* DDayCalculator.swift */; };
 		DC9F55C207E17A610013ED77 /* AppAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80163C03F1DC2363A0DB1401 /* AppAppearance.swift */; };
+		ED7FA368E43950E60644705E /* DaycoCloudSharingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C9630DCB007BC97424DFD3 /* DaycoCloudSharingService.swift */; };
 		FF16027A00701EB9B8CC1651 /* NotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FFE7BEC4A8192E1DEC81274 /* NotificationScheduler.swift */; };
 /* End PBXBuildFile section */
 
@@ -30,15 +37,39 @@
 			remoteGlobalIDString = 220B065CC06E3505F2E3C10D;
 			remoteInfo = Dayco;
 		};
+		80E5367730588E48D29CE3DE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2E8B12165A5827C0904D4007 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D13A3AC630C9222F3F9A8871;
+			remoteInfo = DaycoWidget;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		99C27BBC2010A79CB7CD1940 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				423FCFBDEC2366DE02933E95 /* DaycoWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		014A4955C41745756EDC8F45 /* DDayCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DDayCalculator.swift; sourceTree = "<group>"; };
 		2FFE7BEC4A8192E1DEC81274 /* NotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationScheduler.swift; sourceTree = "<group>"; };
+		36C9630DCB007BC97424DFD3 /* DaycoCloudSharingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaycoCloudSharingService.swift; sourceTree = "<group>"; };
 		390C7296FD35CC9864A03B9C /* DaycoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaycoApp.swift; sourceTree = "<group>"; };
+		3992B39D169BFCF0D7CD9254 /* WidgetSnapshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotService.swift; sourceTree = "<group>"; };
 		3B3D26DF779F0797F70602F7 /* DDayDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DDayDetailView.swift; sourceTree = "<group>"; };
 		43F599294B4C1DC23C7DE15A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		46E18C9528CDD7B6095AD730 /* DaycoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DaycoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		498C6317B6BF90D9D5D59C17 /* DaycoLocalization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaycoLocalization.swift; sourceTree = "<group>"; };
 		666050DC6FF99F56295CD9B8 /* DDayEnums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DDayEnums.swift; sourceTree = "<group>"; };
 		7063D4F119D457C348CE61D1 /* DDayItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DDayItem.swift; sourceTree = "<group>"; };
 		7D07E5B5F727D92302FE8416 /* Dayco.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Dayco.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -47,8 +78,13 @@
 		86583744C7080C5710F4AD61 /* DaycoPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaycoPalette.swift; sourceTree = "<group>"; };
 		9315056695873D7F72080D44 /* DDayListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DDayListView.swift; sourceTree = "<group>"; };
 		A2E1544E365201D125055D52 /* DDayEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DDayEditorView.swift; sourceTree = "<group>"; };
+		B8819961245238CB6930FE5B /* DaycoWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DaycoWidget.entitlements; sourceTree = "<group>"; };
+		C2897EF345C2C23B6B28097F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C70EB39BD5CA4889B988E4CE /* Dayco.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Dayco.entitlements; sourceTree = "<group>"; };
+		C79ED235205F46213DF9BC5C /* DaycoWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DaycoWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D5F4C40FC4400F32E9EA26F8 /* DDayCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DDayCalculatorTests.swift; sourceTree = "<group>"; };
+		D9A92812BFDB0AA87D14A007 /* DaycoWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaycoWidget.swift; sourceTree = "<group>"; };
+		E554CA69F220706AA1575164 /* DaycoWidgetData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaycoWidgetData.swift; sourceTree = "<group>"; };
 		EE011E5414E6E67C2E4BCA16 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -61,6 +97,8 @@
 				B4488EA60683DB856F6B464F /* Models */,
 				681948AE6898ABB84D9E52D1 /* Resources */,
 				5CC50345BC704B0380358E0C /* Services */,
+				EE906EE17FAC00FDB1D1371B /* Shared */,
+				DE4AC42C4E0D0CD0040A9792 /* Support */,
 				5289EAA1A4AB1F73FD2BF6B3 /* Views */,
 			);
 			path = Dayco;
@@ -88,8 +126,10 @@
 		5CC50345BC704B0380358E0C /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				36C9630DCB007BC97424DFD3 /* DaycoCloudSharingService.swift */,
 				014A4955C41745756EDC8F45 /* DDayCalculator.swift */,
 				2FFE7BEC4A8192E1DEC81274 /* NotificationScheduler.swift */,
+				3992B39D169BFCF0D7CD9254 /* WidgetSnapshotService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -99,6 +139,7 @@
 			children = (
 				7D07E5B5F727D92302FE8416 /* Dayco.app */,
 				46E18C9528CDD7B6095AD730 /* DaycoTests.xctest */,
+				C79ED235205F46213DF9BC5C /* DaycoWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -125,6 +166,7 @@
 			children = (
 				3DCB395323C40BDE8E2840B4 /* Dayco */,
 				A98D6CA76C866F4B44CFD352 /* DaycoTests */,
+				CCEA111B28F1C24CC4448E1C /* DaycoWidget */,
 				60688AE69873A5D1A0B06603 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -140,6 +182,32 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		CCEA111B28F1C24CC4448E1C /* DaycoWidget */ = {
+			isa = PBXGroup;
+			children = (
+				B8819961245238CB6930FE5B /* DaycoWidget.entitlements */,
+				D9A92812BFDB0AA87D14A007 /* DaycoWidget.swift */,
+				C2897EF345C2C23B6B28097F /* Info.plist */,
+			);
+			path = DaycoWidget;
+			sourceTree = "<group>";
+		};
+		DE4AC42C4E0D0CD0040A9792 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				498C6317B6BF90D9D5D59C17 /* DaycoLocalization.swift */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
+		EE906EE17FAC00FDB1D1371B /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				E554CA69F220706AA1575164 /* DaycoWidgetData.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -149,10 +217,12 @@
 			buildPhases = (
 				5869DCB7F6054EB45FC58062 /* Sources */,
 				058ED53729BB9789782185E9 /* Resources */,
+				99C27BBC2010A79CB7CD1940 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				BFF5B653346CC4FA691B32EA /* PBXTargetDependency */,
 			);
 			name = Dayco;
 			packageProductDependencies = (
@@ -160,6 +230,23 @@
 			productName = Dayco;
 			productReference = 7D07E5B5F727D92302FE8416 /* Dayco.app */;
 			productType = "com.apple.product-type.application";
+		};
+		D13A3AC630C9222F3F9A8871 /* DaycoWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2F9D22169B37EE22CAC1764E /* Build configuration list for PBXNativeTarget "DaycoWidget" */;
+			buildPhases = (
+				37BBDEA8CBBD4C1DB514B44F /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = DaycoWidget;
+			packageProductDependencies = (
+			);
+			productName = DaycoWidget;
+			productReference = C79ED235205F46213DF9BC5C /* DaycoWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		E3DDFA4D24EFFD4CBD3B345A /* DaycoTests */ = {
 			isa = PBXNativeTarget;
@@ -204,6 +291,7 @@
 			targets = (
 				220B065CC06E3505F2E3C10D /* Dayco */,
 				E3DDFA4D24EFFD4CBD3B345A /* DaycoTests */,
+				D13A3AC630C9222F3F9A8871 /* DaycoWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -228,6 +316,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		37BBDEA8CBBD4C1DB514B44F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3AEFCDEA3E0BB30B9D99C694 /* DaycoWidget.swift in Sources */,
+				67C07DA44F5B9FB9882CAFAD /* DaycoWidgetData.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5869DCB7F6054EB45FC58062 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -240,9 +337,13 @@
 				55E85D45B94A77C27105BC99 /* DDayItem.swift in Sources */,
 				877AD1D5D967F22BD63F4132 /* DDayListView.swift in Sources */,
 				193D4D8972EDE47E4C4EB945 /* DaycoApp.swift in Sources */,
+				ED7FA368E43950E60644705E /* DaycoCloudSharingService.swift in Sources */,
+				A8CEA67DCB29D571D895E4F3 /* DaycoLocalization.swift in Sources */,
 				1C8C94C8102E09D399049BBD /* DaycoPalette.swift in Sources */,
+				51EFC951C33875C81E0EF23C /* DaycoWidgetData.swift in Sources */,
 				FF16027A00701EB9B8CC1651 /* NotificationScheduler.swift in Sources */,
 				48BEB65093FD98EAE033BB59 /* SettingsView.swift in Sources */,
+				4B948BDB14D58F3639BCD5DF /* WidgetSnapshotService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -254,9 +355,32 @@
 			target = 220B065CC06E3505F2E3C10D /* Dayco */;
 			targetProxy = 036ABD7BDCEAD1A88F298302 /* PBXContainerItemProxy */;
 		};
+		BFF5B653346CC4FA691B32EA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D13A3AC630C9222F3F9A8871 /* DaycoWidget */;
+			targetProxy = 80E5367730588E48D29CE3DE /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		1C57421228B398315E020F47 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = DaycoWidget/DaycoWidget.entitlements;
+				DEVELOPMENT_TEAM = SB2Z6HL579;
+				INFOPLIST_FILE = DaycoWidget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.seunghwabaek.dayco.widget;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 		1E05D47C8270C7F569881863 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -280,6 +404,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = SB2Z6HL579;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -290,6 +415,24 @@
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Dayco.app/Dayco";
+			};
+			name = Release;
+		};
+		25339E5D693A42BCAD3C0030 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = DaycoWidget/DaycoWidget.entitlements;
+				DEVELOPMENT_TEAM = SB2Z6HL579;
+				INFOPLIST_FILE = DaycoWidget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.seunghwabaek.dayco.widget;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -443,6 +586,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = SB2Z6HL579;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -459,6 +603,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		2F9D22169B37EE22CAC1764E /* Build configuration list for PBXNativeTarget "DaycoWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1C57421228B398315E020F47 /* Debug */,
+				25339E5D693A42BCAD3C0030 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		313F0C5A52B2B9DF7C56D710 /* Build configuration list for PBXNativeTarget "Dayco" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

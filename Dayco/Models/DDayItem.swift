@@ -73,6 +73,7 @@ final class DDayItem {
     var date: Date = Date.now
     var typeRawValue: String = DDayType.countDown.rawValue
     var repeatRuleRawValue: String?
+    var milestoneDayRawValue: Int?
     var countStartAsDayOne: Bool = false
     var displayUnitRawValue: String = DisplayUnit.days.rawValue
     var notificationRuleRawValues: [String] = []
@@ -90,6 +91,8 @@ final class DDayItem {
         date: Date,
         type: DDayType,
         repeatRule: RepeatRule? = nil,
+        milestoneDay: MilestoneDay? = nil,
+        customMilestoneDay: Int? = nil,
         countStartAsDayOne: Bool = false,
         displayUnit: DisplayUnit = .days,
         notificationDays: [Int] = [],
@@ -106,6 +109,7 @@ final class DDayItem {
         self.date = date
         self.typeRawValue = type.rawValue
         self.repeatRuleRawValue = repeatRule?.rawValue
+        self.milestoneDayRawValue = customMilestoneDay.map { max($0, 1) } ?? milestoneDay?.rawValue
         self.countStartAsDayOne = countStartAsDayOne
         self.displayUnitRawValue = displayUnit.rawValue
         self.notificationRuleRawValues = notificationDays.map(String.init)
@@ -131,6 +135,19 @@ extension DDayItem {
             return RepeatRule(rawValue: repeatRuleRawValue)
         }
         set { repeatRuleRawValue = newValue?.rawValue }
+    }
+
+    var milestoneDay: MilestoneDay? {
+        get {
+            guard let milestoneDayRawValue else { return nil }
+            return MilestoneDay(rawValue: milestoneDayRawValue)
+        }
+        set { milestoneDayRawValue = newValue?.rawValue }
+    }
+
+    var milestoneDayValue: Int {
+        get { max(milestoneDayRawValue ?? MilestoneDay.day100.rawValue, 1) }
+        set { milestoneDayRawValue = max(newValue, 1) }
     }
 
     var displayUnit: DisplayUnit {
@@ -201,11 +218,16 @@ extension DDayItem {
     }
 
     func notificationTitle(for rule: NotificationRule) -> String {
-        let timeText = rule.minute == 0 ? "\(rule.hour)시" : "\(rule.hour)시 \(rule.minute)분"
+        let timeText = DaycoText.language == .english
+            ? String(format: "%02d:%02d", rule.hour, rule.minute)
+            : (rule.minute == 0 ? "\(rule.hour)시" : "\(rule.hour)시 \(rule.minute)분")
         switch type {
         case .countUp:
-            return "\(rule.day)일째 \(timeText)"
-        case .countDown, .recurring:
+            return DaycoText.language == .english ? "Day \(rule.day) \(timeText)" : "\(rule.day)일째 \(timeText)"
+        case .countDown, .recurring, .milestone:
+            if DaycoText.language == .english {
+                return rule.day == 0 ? "Same day \(timeText)" : "\(rule.day) days before \(timeText)"
+            }
             return rule.day == 0 ? "당일 \(timeText)" : "\(rule.day)일 전 \(timeText)"
         }
     }

@@ -10,16 +10,22 @@ struct DDayEditorView: View {
     @State private var date: Date
     @State private var type: DDayType
     @State private var repeatRule: RepeatRule
+    @State private var milestoneSelection: Int
+    @State private var customMilestoneDay: Int
     @State private var countStartAsDayOne: Bool
     @State private var displayUnit: DisplayUnit
     @State private var notificationRules: [NotificationRule]
     @State private var notificationDate: Date
+    @State private var isComposingNotification = false
     @State private var isPinned: Bool
     @State private var isShared: Bool
     @State private var sharePermission: SharePermission
     @State private var cardColor: DDayCardColor
     @State private var isConfirmingDelete = false
     @State private var isShowingInvalidPastDateAlert = false
+    @State private var preparedCloudShare: PreparedDaycoCloudShare?
+    @State private var isPreparingCloudShare = false
+    @State private var cloudShareErrorMessage: String?
     @State private var isDeleting = false
 
     init(item: DDayItem? = nil) {
@@ -28,6 +34,9 @@ struct DDayEditorView: View {
         _date = State(initialValue: item?.date ?? .now)
         _type = State(initialValue: item?.type ?? .countDown)
         _repeatRule = State(initialValue: item?.repeatRule ?? .yearly)
+        let initialMilestoneDay = item?.milestoneDayValue ?? MilestoneDay.day100.rawValue
+        _milestoneSelection = State(initialValue: MilestoneDay(rawValue: initialMilestoneDay) == nil ? 0 : initialMilestoneDay)
+        _customMilestoneDay = State(initialValue: initialMilestoneDay)
         _countStartAsDayOne = State(initialValue: item?.countStartAsDayOne ?? false)
         _displayUnit = State(initialValue: item?.displayUnit ?? .days)
         _notificationRules = State(initialValue: item?.notificationRules ?? [])
@@ -35,7 +44,8 @@ struct DDayEditorView: View {
             eventDate: item?.date ?? .now,
             type: item?.type ?? .countDown,
             repeatRule: item?.repeatRule ?? .yearly,
-            countStartAsDayOne: item?.countStartAsDayOne ?? false
+            countStartAsDayOne: item?.countStartAsDayOne ?? false,
+            milestoneDay: initialMilestoneDay
         ))
         _isPinned = State(initialValue: item?.isPinned ?? false)
         _isShared = State(initialValue: item?.isShared ?? false)
@@ -45,201 +55,22 @@ struct DDayEditorView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("기본") {
-                    TextField("제목", text: $title)
-                    DatePicker("날짜", selection: $date, displayedComponents: .date)
-                    Toggle("상단에 고정", isOn: $isPinned)
-                }
-
-                Section("유형") {
-                    HStack {
-                        Text("디데이 유형")
-
-                        Spacer()
-
-                        Menu {
-                            ForEach(DDayType.allCases) { type in
-                                Button {
-                                    self.type = type
-                                } label: {
-                                    Label(type.title, systemImage: type.symbolName)
-                                }
-                            }
-                        } label: {
-                            HStack(spacing: 16) {
-                                Image(systemName: type.symbolName)
-                                    .frame(width: 22)
-                                    .foregroundStyle(.primary)
-
-                                Text(type.title)
-                                    .foregroundStyle(.primary)
-
-                                Image(systemName: "chevron.up.chevron.down")
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                        .tint(.primary)
-                    }
-
-                    if type == .recurring {
-                        Picker("반복", selection: $repeatRule) {
-                            ForEach(RepeatRule.allCases) { rule in
-                                Text(rule.title).tag(rule)
-                            }
-                        }
-                    }
-
-                    HStack {
-                        Text("색상")
-
-                        Spacer()
-
-                        HStack(spacing: 10) {
-                            ForEach(DDayCardColor.allCases.filter { $0 != .typeDefault && $0 != .green && $0 != .pink && $0 != .beige }) { color in
-                                Button {
-                                    cardColor = color
-                                } label: {
-                                    ZStack {
-                                        color.previewSwatch(for: type)
-                                            .frame(width: 26, height: 26)
-
-                                        if cardColor == color {
-                                            Image(systemName: "checkmark")
-                                                .font(.caption2.weight(.bold))
-                                                .foregroundStyle(color.checkmarkColor(for: type))
-                                        }
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel(color.title)
-                            }
-                        }
-                    }
-                }
-
-                Section("계산 옵션") {
-                    Picker("표시 단위", selection: $displayUnit) {
-                        ForEach(availableDisplayUnits) { unit in
-                            Text(unit.title).tag(unit)
-                        }
-                    }
-
-                    if type == .countUp {
-                        Toggle("시작일을 1일로 계산", isOn: $countStartAsDayOne)
-                    }
-                }
-
-                Section {
-                    DatePicker(
-                        "알림 날짜",
-                        selection: $notificationDate,
-                        in: Date.now...,
-                        displayedComponents: .date
-                    )
-
-                    DatePicker(
-                        "알림 시간",
-                        selection: $notificationDate,
-                        in: Date.now...,
-                        displayedComponents: .hourAndMinute
-                    )
-
-                    LabeledContent("설정한 알림", value: notificationDateText(for: notificationDate))
-
-                    HStack {
-                        Text(notificationOffsetText(for: notificationDate))
-                            .foregroundStyle(.secondary)
-
-                        Spacer()
-
-                        Button {
-                            addNotificationRule()
-                        } label: {
-                            Label("추가", systemImage: "plus.circle.fill")
-                        }
-                        .disabled(parsedNotificationRule == nil)
-                    }
-
-                    if notificationRules.isEmpty {
-                        Text("설정된 알림 없음")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(notificationRules) { rule in
-                            HStack(spacing: 12) {
-                                Image(systemName: "bell")
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 22)
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(notificationDateText(for: rule))
-                                        .foregroundStyle(.primary)
-                                    Text(notificationTitle(for: rule))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                Spacer()
-
-                                Button {
-                                    deleteNotificationRule(rule)
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.title3)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("알림 삭제")
-                            }
-                        }
-                    }
-                } header: {
-                    Text("알림")
-                } footer: {
-                    Text(notificationFooterText)
-                }
-
-                Section("공유") {
-                    Toggle("친구와 공유", isOn: $isShared)
-
-                    if isShared {
-                        Picker("권한", selection: $sharePermission) {
-                            ForEach(SharePermission.allCases) { permission in
-                                Text(permission.title).tag(permission)
-                            }
-                        }
-                    }
-                }
-
-                if item != nil {
-                    Section {
-                        Button(role: .destructive) {
-                            isConfirmingDelete = true
-                        } label: {
-                            Label("삭제", systemImage: "trash")
-                        }
-                    }
-                }
-            }
-            .navigationTitle(item == nil ? "디데이 추가" : "디데이 편집")
+            AnyView(editorForm)
+            .navigationTitle(item == nil ? DaycoText.t("디데이 추가") : DaycoText.t("디데이 편집"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(item == nil ? "취소" : "닫기") {
+                    Button(item == nil ? DaycoText.t("취소") : DaycoText.t("닫기")) {
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("저장") {
+                    Button(DaycoText.t("저장")) {
                         save()
                     }
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-            }
-            .onChange(of: title) { _, _ in
-                autosaveExistingItem()
             }
             .onChange(of: type) { _, newValue in
                 if newValue != .recurring {
@@ -252,7 +83,8 @@ struct DDayEditorView: View {
                     eventDate: date,
                     type: newValue,
                     repeatRule: repeatRule,
-                    countStartAsDayOne: countStartAsDayOne
+                    countStartAsDayOne: countStartAsDayOne,
+                    milestoneDay: effectiveMilestoneDay
                 )
                 autosaveExistingItem()
             }
@@ -261,7 +93,8 @@ struct DDayEditorView: View {
                     eventDate: newValue,
                     type: type,
                     repeatRule: repeatRule,
-                    countStartAsDayOne: countStartAsDayOne
+                    countStartAsDayOne: countStartAsDayOne,
+                    milestoneDay: effectiveMilestoneDay
                 )
                 autosaveExistingItem()
             }
@@ -270,7 +103,29 @@ struct DDayEditorView: View {
                     eventDate: date,
                     type: type,
                     repeatRule: newValue,
-                    countStartAsDayOne: countStartAsDayOne
+                    countStartAsDayOne: countStartAsDayOne,
+                    milestoneDay: effectiveMilestoneDay
+                )
+                autosaveExistingItem()
+            }
+            .onChange(of: milestoneSelection) { _, newValue in
+                notificationDate = Self.defaultNotificationDate(
+                    eventDate: date,
+                    type: type,
+                    repeatRule: repeatRule,
+                    countStartAsDayOne: countStartAsDayOne,
+                    milestoneDay: newValue == 0 ? customMilestoneDay : newValue
+                )
+                autosaveExistingItem()
+            }
+            .onChange(of: customMilestoneDay) { _, newValue in
+                guard milestoneSelection == 0 else { return }
+                notificationDate = Self.defaultNotificationDate(
+                    eventDate: date,
+                    type: type,
+                    repeatRule: repeatRule,
+                    countStartAsDayOne: countStartAsDayOne,
+                    milestoneDay: newValue
                 )
                 autosaveExistingItem()
             }
@@ -279,45 +134,372 @@ struct DDayEditorView: View {
                     eventDate: date,
                     type: type,
                     repeatRule: repeatRule,
-                    countStartAsDayOne: newValue
+                    countStartAsDayOne: newValue,
+                    milestoneDay: effectiveMilestoneDay
                 )
                 autosaveExistingItem()
             }
-            .onChange(of: displayUnit) { _, _ in
-                autosaveExistingItem()
-            }
-            .onChange(of: notificationRules) { _, _ in
-                autosaveExistingItem()
-            }
-            .onChange(of: isPinned) { _, _ in
-                autosaveExistingItem()
-            }
-            .onChange(of: isShared) { _, _ in
-                autosaveExistingItem()
-            }
-            .onChange(of: sharePermission) { _, _ in
-                autosaveExistingItem()
-            }
-            .onChange(of: cardColor) { _, _ in
+            .onChange(of: autosaveSignature) { _, _ in
                 autosaveExistingItem()
             }
             .onDisappear {
                 autosaveExistingItem()
             }
-            .alert("삭제하시겠습니까?", isPresented: $isConfirmingDelete) {
-                Button("취소", role: .cancel) {}
-                Button("삭제", role: .destructive) {
+            .alert(DaycoText.t("삭제하시겠습니까?"), isPresented: $isConfirmingDelete) {
+                Button(DaycoText.t("취소"), role: .cancel) {}
+                Button(DaycoText.t("삭제"), role: .destructive) {
                     deleteItem()
                 }
             } message: {
-                Text("이 디데이는 복구할 수 없습니다.")
+                Text(DaycoText.t("이 디데이는 복구할 수 없습니다."))
             }
-            .alert("지난 날짜를 선택해 주세요", isPresented: $isShowingInvalidPastDateAlert) {
-                Button("확인", role: .cancel) {}
+            .alert(DaycoText.t("지난 날짜를 선택해 주세요"), isPresented: $isShowingInvalidPastDateAlert) {
+                Button(DaycoText.t("확인"), role: .cancel) {}
             } message: {
-                Text("디데이 유형이 지난 날짜일 때는 오늘보다 과거인 날짜로 설정해야 합니다.")
+                Text(DaycoText.t("디데이 유형이 지난 날짜일 때는 오늘보다 과거인 날짜로 설정해야 합니다."))
+            }
+            .alert(DaycoText.t("iCloud 공유를 완료할 수 없습니다"), isPresented: cloudShareErrorBinding) {
+                Button(DaycoText.t("확인"), role: .cancel) {}
+            } message: {
+                Text(cloudShareErrorMessage ?? DaycoText.t("잠시 후 다시 시도해 주세요."))
+            }
+            .sheet(item: $preparedCloudShare) { preparedShare in
+                cloudSharingSheet(preparedShare)
             }
         }
+    }
+
+    private var editorForm: some View {
+        Form {
+            basicSection
+            typeSection
+            calculationSection
+            notificationSection
+            deleteSection
+        }
+    }
+
+    private var basicSection: some View {
+        Section(DaycoText.t("기본")) {
+            TextField(DaycoText.t("제목"), text: $title)
+            DatePicker(DaycoText.t("날짜"), selection: $date, displayedComponents: .date)
+            Toggle(DaycoText.t("상단에 고정"), isOn: $isPinned)
+        }
+    }
+
+    private var typeSection: some View {
+        Section(DaycoText.t("유형")) {
+            HStack {
+                Text(DaycoText.t("디데이 유형"))
+
+                Spacer()
+
+                Menu {
+                    ForEach(DDayType.allCases) { type in
+                        Button {
+                            self.type = type
+                        } label: {
+                            Label(type.title, systemImage: type.symbolName)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 16) {
+                        Image(systemName: type.symbolName)
+                            .frame(width: 22)
+                            .foregroundStyle(.primary)
+
+                        Text(type.title)
+                            .foregroundStyle(.primary)
+
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .tint(.primary)
+            }
+
+            if type == .recurring {
+                Picker(DaycoText.t("반복"), selection: $repeatRule) {
+                    ForEach(RepeatRule.allCases) { rule in
+                        Text(rule.title).tag(rule)
+                    }
+                }
+            }
+
+            milestonePicker
+
+            colorPickerRow
+        }
+    }
+
+    @ViewBuilder
+    private var milestonePicker: some View {
+        if type == .milestone {
+            Picker(DaycoText.t("기념일"), selection: $milestoneSelection) {
+                ForEach(MilestoneDay.allCases) { day in
+                    Text(day.title).tag(day.rawValue)
+                }
+                Text(DaycoText.t("직접 입력")).tag(0)
+            }
+
+            if milestoneSelection == 0 {
+                HStack {
+                    Text(DaycoText.t("직접 입력"))
+
+                    Spacer()
+
+                    TextField(DaycoText.t("일수"), value: $customMilestoneDay, format: .number)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 110)
+
+                    Text(DaycoText.t("일"))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private var colorPickerRow: some View {
+        HStack(spacing: 16) {
+            Text(DaycoText.t("색상"))
+                .lineLimit(1)
+                .fixedSize()
+
+            Spacer(minLength: 0)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(availableCardColors) { color in
+                        Button {
+                            cardColor = color
+                        } label: {
+                            ZStack {
+                                color.previewSwatch(for: type)
+                                    .frame(width: 26, height: 26)
+
+                                if cardColor == color {
+                                    Image(systemName: "checkmark")
+                                        .font(.caption2.weight(.bold))
+                                        .foregroundStyle(color.checkmarkColor(for: type))
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(color.title)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .frame(maxWidth: 230, alignment: .trailing)
+        }
+    }
+
+    private var calculationSection: some View {
+        Section(DaycoText.t("계산 옵션")) {
+            Picker(DaycoText.t("표시 단위"), selection: $displayUnit) {
+                ForEach(availableDisplayUnits) { unit in
+                    Text(unit.title).tag(unit)
+                }
+            }
+
+            if type == .countUp {
+                Toggle(DaycoText.t("시작일을 1일로 계산"), isOn: $countStartAsDayOne)
+            }
+
+            if type == .milestone {
+                Toggle(DaycoText.t("시작일을 1일로 계산"), isOn: $countStartAsDayOne)
+            }
+        }
+    }
+
+    private var notificationSection: some View {
+        Section {
+            notificationComposer
+            notificationList
+        } header: {
+            Text(DaycoText.t("알림"))
+        } footer: {
+            Text(notificationFooterText)
+        }
+    }
+
+    @ViewBuilder
+    private var notificationComposer: some View {
+        if isComposingNotification {
+            DatePicker(
+                DaycoText.t("알림 날짜"),
+                selection: $notificationDate,
+                in: Date.now...,
+                displayedComponents: .date
+            )
+
+            DatePicker(
+                DaycoText.t("알림 시간"),
+                selection: $notificationDate,
+                in: Date.now...,
+                displayedComponents: .hourAndMinute
+            )
+
+            LabeledContent(DaycoText.t("설정한 알림"), value: notificationDateText(for: notificationDate))
+
+            HStack {
+                Text(notificationOffsetText(for: notificationDate))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button(DaycoText.t("취소")) {
+                    isComposingNotification = false
+                }
+
+                Divider()
+                    .frame(height: 18)
+                    .padding(.horizontal, 2)
+
+                Button(DaycoText.t("완료")) {
+                    addNotificationRule()
+                }
+                .disabled(parsedNotificationRule == nil)
+            }
+        } else {
+            Button {
+                notificationDate = Self.defaultNotificationDate(
+                    eventDate: date,
+                    type: type,
+                    repeatRule: repeatRule,
+                    countStartAsDayOne: countStartAsDayOne,
+                    milestoneDay: effectiveMilestoneDay
+                )
+                isComposingNotification = true
+            } label: {
+                Label(DaycoText.t("추가"), systemImage: "plus.circle.fill")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var notificationList: some View {
+        if notificationRules.isEmpty {
+            Text(DaycoText.t("설정된 알림 없음"))
+                .foregroundStyle(.secondary)
+        } else {
+            ForEach(notificationRules) { rule in
+                notificationRuleRow(rule)
+            }
+        }
+    }
+
+    private func notificationRuleRow(_ rule: NotificationRule) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "bell")
+                .foregroundStyle(.secondary)
+                .frame(width: 22)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(notificationDateText(for: rule))
+                    .foregroundStyle(.primary)
+                Text(notificationTitle(for: rule))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button {
+                deleteNotificationRule(rule)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(DaycoText.t("알림 삭제"))
+        }
+    }
+
+    @ViewBuilder
+    private var deleteSection: some View {
+        if item != nil {
+            Section {
+                Button(role: .destructive) {
+                    isConfirmingDelete = true
+                } label: {
+                    Label(DaycoText.t("삭제"), systemImage: "trash")
+                }
+            }
+        }
+    }
+
+    private func cloudSharingSheet(_ preparedShare: PreparedDaycoCloudShare) -> some View {
+        DaycoCloudSharingView(
+            preparedShare: preparedShare,
+            onSave: {
+                item?.isShared = true
+                item?.sharePermission = sharePermission
+                item?.updatedAt = .now
+                try? modelContext.save()
+            },
+            onStopSharing: {
+                item?.isShared = false
+                item?.sharePermission = nil
+                item?.updatedAt = .now
+                try? modelContext.save()
+            },
+            onError: { error in
+                cloudShareErrorMessage = error.localizedDescription
+            }
+        )
+    }
+
+    private func showCloudShareInvite() {
+        guard let item, persistChanges(allowInsert: false) else { return }
+
+        let payload = DaycoSharePayload(item: item)
+        let permission = sharePermission
+        isPreparingCloudShare = true
+
+        DaycoCloudSharingService.prepareShare(
+            payload: payload,
+            permission: permission
+        ) { share, container, error in
+            Task { @MainActor in
+                isPreparingCloudShare = false
+
+                if let error {
+                    cloudShareErrorMessage = error.localizedDescription
+                    return
+                }
+
+                guard let share, let container else {
+                    cloudShareErrorMessage = DaycoText.t("iCloud 공유 정보를 준비하지 못했습니다.")
+                    return
+                }
+
+                guard share.url != nil else {
+                    cloudShareErrorMessage = DaycoCloudSharingError.missingShareURL.localizedDescription
+                    return
+                }
+
+                preparedCloudShare = PreparedDaycoCloudShare(
+                    payload: payload,
+                    share: share,
+                    container: container
+                )
+            }
+        }
+    }
+
+    private var cloudShareErrorBinding: Binding<Bool> {
+        Binding(
+            get: { cloudShareErrorMessage != nil },
+            set: { newValue in
+                if !newValue {
+                    cloudShareErrorMessage = nil
+                }
+            }
+        )
     }
 
     private func save() {
@@ -353,19 +535,23 @@ struct DDayEditorView: View {
         }
         let safeDisplayUnit = availableDisplayUnits.contains(displayUnit) ? displayUnit : .days
 
+        let savedItem: DDayItem
+
         if let item {
             item.title = trimmedTitle
             item.date = date
             item.type = type
             item.repeatRule = type == .recurring ? repeatRule : nil
+            item.milestoneDayRawValue = type == .milestone ? effectiveMilestoneDay : nil
             item.countStartAsDayOne = countStartAsDayOne
             item.displayUnit = safeDisplayUnit
             item.notificationRules = sortedNotificationRules
             item.isPinned = isPinned
-            item.isShared = isShared
-            item.sharePermission = isShared ? sharePermission : nil
+            item.isShared = false
+            item.sharePermission = nil
             item.cardColor = cardColor
             item.updatedAt = .now
+            savedItem = item
         } else {
             guard allowInsert else { return false }
             let newItem = DDayItem(
@@ -373,24 +559,58 @@ struct DDayEditorView: View {
                 date: date,
                 type: type,
                 repeatRule: type == .recurring ? repeatRule : nil,
+                customMilestoneDay: type == .milestone ? effectiveMilestoneDay : nil,
                 countStartAsDayOne: countStartAsDayOne,
                 displayUnit: safeDisplayUnit,
                 notificationDays: [],
                 isPinned: isPinned,
-                isShared: isShared,
-                sharePermission: isShared ? sharePermission : nil,
+                isShared: false,
+                sharePermission: nil,
                 cardColor: cardColor
             )
             newItem.notificationRules = sortedNotificationRules
             modelContext.insert(newItem)
+            savedItem = newItem
         }
 
         try? modelContext.save()
+        Task { @MainActor in
+            await NotificationScheduler().rescheduleNotifications(for: savedItem)
+        }
         return true
     }
 
     private var availableDisplayUnits: [DisplayUnit] {
-        type == .recurring ? [.days] : DisplayUnit.allCases
+        switch type {
+        case .recurring, .milestone:
+            return [.days]
+        case .countUp, .countDown:
+            return DisplayUnit.allCases
+        }
+    }
+
+    private var availableCardColors: [DDayCardColor] {
+        DDayCardColor.allCases.filter { color in
+            color != .typeDefault && color != .green && color != .pink && color != .beige
+        }
+    }
+
+    private var autosaveSignature: String {
+        [
+            title,
+            type.rawValue,
+            repeatRule.rawValue,
+            milestoneSelection.formatted(),
+            customMilestoneDay.formatted(),
+            displayUnit.rawValue,
+            notificationRules.map(\.rawValue).joined(separator: ","),
+            "\(isPinned)",
+            cardColor.rawValue
+        ].joined(separator: "|")
+    }
+
+    private var effectiveMilestoneDay: Int {
+        max(milestoneSelection == 0 ? customMilestoneDay : milestoneSelection, 1)
     }
 
     private var isValidDateForSelectedType: Bool {
@@ -415,7 +635,7 @@ struct DDayEditorView: View {
             guard selectedDay >= baseDay else { return nil }
             let offset = calendar.dateComponents([.day], from: baseDay, to: selectedDay).day ?? 0
             day = offset + (countStartAsDayOne ? 1 : 0)
-        case .countDown, .recurring:
+        case .countDown, .recurring, .milestone:
             let targetDay = calendar.startOfDay(for: notificationTargetDate)
             guard selectedDay <= targetDay else { return nil }
             day = calendar.dateComponents([.day], from: selectedDay, to: targetDay).day ?? 0
@@ -428,19 +648,27 @@ struct DDayEditorView: View {
     private var notificationFooterText: String {
         switch type {
         case .countUp:
-            "달력에서 고른 날짜와 시간에 알림이 옵니다.\n시작일보다 이전 날짜는 추가할 수 없습니다."
-        case .countDown, .recurring:
-            "달력에서 고른 날짜와 시간에 알림이 옵니다.\n디데이 이후 날짜는 추가할 수 없습니다."
+            DaycoText.t("달력에서 고른 날짜와 시간에 알림이 옵니다.\n시작일보다 이전 날짜는 추가할 수 없습니다.")
+        case .countDown, .recurring, .milestone:
+            DaycoText.t("달력에서 고른 날짜와 시간에 알림이 옵니다.\n디데이 이후 날짜는 추가할 수 없습니다.")
         }
     }
 
     private func notificationTitle(for rule: NotificationRule) -> String {
-        let timeText = rule.minute == 0 ? "\(rule.hour)시" : "\(rule.hour)시 \(rule.minute)분"
+        let timeText = DaycoText.language == .english
+            ? String(format: "%02d:%02d", rule.hour, rule.minute)
+            : (rule.minute == 0 ? "\(rule.hour)시" : "\(rule.hour)시 \(rule.minute)분")
         switch type {
         case .countUp:
-            return "\(rule.day)일째 \(timeText)"
-        case .countDown, .recurring:
-            return rule.day == 0 ? "당일 \(timeText)" : "\(rule.day)일 전 \(timeText)"
+            return DaycoText.language == .english ? "Day \(rule.day) \(timeText)" : "\(rule.day)일째 \(timeText)"
+        case .countDown, .recurring, .milestone:
+            if DaycoText.language == .english {
+                return rule.day == 0 ? "Same day \(timeText)" : "\(rule.day) days before \(timeText)"
+            }
+            if DaycoText.language == .english {
+                return rule.day == 0 ? "Same day \(timeText)" : "\(rule.day) days before \(timeText)"
+            }
+            return rule.day == 0 ? "\(DaycoText.t("당일")) \(timeText)" : "\(rule.day)일 전 \(timeText)"
         }
     }
 
@@ -456,6 +684,7 @@ struct DDayEditorView: View {
             }
             return $0.minute < $1.minute
         }
+        isComposingNotification = false
     }
 
     private func deleteNotificationRules(at offsets: IndexSet) {
@@ -472,6 +701,8 @@ struct DDayEditorView: View {
             return date
         case .recurring:
             return Self.resolvedRecurringDate(from: date, repeatRule: repeatRule)
+        case .milestone:
+            return Self.resolvedMilestoneDate(from: date, milestoneDay: effectiveMilestoneDay, countStartAsDayOne: countStartAsDayOne)
         }
     }
 
@@ -490,6 +721,9 @@ struct DDayEditorView: View {
         case .recurring:
             baseDay = calendar.startOfDay(for: notificationTargetDate)
             offset = -rule.day
+        case .milestone:
+            baseDay = calendar.startOfDay(for: notificationTargetDate)
+            offset = -rule.day
         }
 
         let day = calendar.date(byAdding: .day, value: offset, to: baseDay) ?? baseDay
@@ -501,16 +735,16 @@ struct DDayEditorView: View {
     }
 
     private func notificationDateText(for date: Date) -> String {
-        date.formatted(.dateTime.year().month().day().hour().minute())
+        date.formatted(.dateTime.year().month().day().hour().minute().locale(Locale(identifier: DaycoText.language.localeIdentifier)))
     }
 
     private func notificationOffsetText(for date: Date) -> String {
         guard let rule = parsedNotificationRule else {
             switch type {
             case .countUp:
-                return "시작일 이후 날짜를 선택해 주세요"
-            case .countDown, .recurring:
-                return "디데이 이전 또는 당일을 선택해 주세요"
+                return DaycoText.t("시작일 이후 날짜를 선택해 주세요")
+            case .countDown, .recurring, .milestone:
+                return DaycoText.t("디데이 이전 또는 당일을 선택해 주세요")
             }
         }
         return notificationTitle(for: rule)
@@ -520,13 +754,29 @@ struct DDayEditorView: View {
         eventDate: Date,
         type: DDayType,
         repeatRule: RepeatRule,
-        countStartAsDayOne: Bool
+        countStartAsDayOne: Bool,
+        milestoneDay: Int
     ) -> Date {
         let calendar = Calendar.current
-        let baseDate = type == .recurring ? resolvedRecurringDate(from: eventDate, repeatRule: repeatRule) : eventDate
+        let baseDate: Date
+        switch type {
+        case .recurring:
+            baseDate = resolvedRecurringDate(from: eventDate, repeatRule: repeatRule)
+        case .milestone:
+            baseDate = resolvedMilestoneDate(from: eventDate, milestoneDay: milestoneDay, countStartAsDayOne: countStartAsDayOne)
+        case .countUp, .countDown:
+            baseDate = eventDate
+        }
         let startOfDay = calendar.startOfDay(for: baseDate)
         let preferredDate = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: startOfDay) ?? startOfDay
         return preferredDate < Date.now ? Date.now : preferredDate
+    }
+
+    private static func resolvedMilestoneDate(from date: Date, milestoneDay: Int, countStartAsDayOne: Bool) -> Date {
+        let calendar = Calendar.current
+        let startDate = calendar.startOfDay(for: date)
+        let offset = max(milestoneDay, 1) - (countStartAsDayOne ? 1 : 0)
+        return calendar.date(byAdding: .day, value: max(offset, 0), to: startDate) ?? startDate
     }
 
     private static func resolvedRecurringDate(from date: Date, repeatRule: RepeatRule) -> Date {
@@ -571,6 +821,9 @@ struct DDayEditorView: View {
     private func deleteItem() {
         guard let item else { return }
         isDeleting = true
+        Task { @MainActor in
+            await NotificationScheduler().removeNotifications(for: item)
+        }
         modelContext.delete(item)
         dismiss()
     }
@@ -663,6 +916,8 @@ private extension DDayType {
             return DaycoPalette.calendarOrange
         case .recurring:
             return DaycoPalette.vividBlue
+        case .milestone:
+            return DaycoPalette.magenta
         }
     }
 }

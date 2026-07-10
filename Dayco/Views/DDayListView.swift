@@ -6,6 +6,7 @@ import UserNotifications
 
 struct DDayListView: View {
     @Environment(\.modelContext) private var modelContext
+    @AppStorage("appLanguage") private var appLanguageRawValue = DaycoLanguage.korean.rawValue
     @Query(sort: \DDayItem.date)
     private var items: [DDayItem]
 
@@ -96,18 +97,29 @@ struct DDayListView: View {
                 editingItem = item
             }
         }
-        .alert("삭제하시겠습니까?", isPresented: $isConfirmingDeletion) {
-            Button("취소", role: .cancel) {
+        .alert(DaycoText.t("삭제하시겠습니까?"), isPresented: $isConfirmingDeletion) {
+            Button(DaycoText.t("취소"), role: .cancel) {
                 itemPendingDeletion = nil
             }
-            Button("삭제", role: .destructive) {
+            Button(DaycoText.t("삭제"), role: .destructive) {
                 if let item = itemPendingDeletion {
                     deleteItem(item)
                 }
                 itemPendingDeletion = nil
             }
         } message: {
-            Text("이 디데이는 복구할 수 없습니다.")
+            Text(DaycoText.t("이 디데이는 복구할 수 없습니다."))
+        }
+        .onAppear {
+            WidgetSnapshotService.update(with: sortedItems)
+            rescheduleAllNotifications()
+            removeDeliveredNotifications()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            removeDeliveredNotifications()
+        }
+        .onChange(of: widgetSnapshotSignature) {
+            WidgetSnapshotService.update(with: sortedItems)
         }
     }
 
@@ -124,6 +136,7 @@ struct DDayListView: View {
                         SwipeableDDayCardRow(
                             item: item,
                             calculation: calculator.calculate(item: item),
+                            language: appLanguage,
                             editAction: { editingItem = item },
                             reorderAction: { startReordering() },
                             pinAction: { togglePinned(item) },
@@ -151,7 +164,7 @@ struct DDayListView: View {
                     ForEach(Array(sortedItems.enumerated()), id: \.element.id) { index, item in
                         let isActive = activeReorderItemID == item.id
 
-                        DDayCardView(item: item, calculation: calculator.calculate(item: item))
+                        DDayCardView(item: item, calculation: calculator.calculate(item: item), language: appLanguage)
                             .wiggling(true, seed: wiggleSeed(for: item))
                             .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                             .padding(.horizontal, 18)
@@ -200,7 +213,24 @@ struct DDayListView: View {
     }
 
     private func deleteItem(_ item: DDayItem) {
+        Task { @MainActor in
+            await NotificationScheduler().removeNotifications(for: item)
+        }
         modelContext.delete(item)
+    }
+
+    private func rescheduleAllNotifications() {
+        Task { @MainActor in
+            for item in sortedItems {
+                await NotificationScheduler().rescheduleNotifications(for: item)
+            }
+        }
+    }
+
+    private func removeDeliveredNotifications() {
+        Task { @MainActor in
+            await NotificationScheduler().removeDeliveredDaycoNotifications(for: sortedItems)
+        }
     }
 
     private func togglePinned(_ item: DDayItem) {
@@ -408,6 +438,30 @@ struct DDayListView: View {
 
             return $0.createdAt < $1.createdAt
         }
+    }
+
+    private var appLanguage: DaycoLanguage {
+        DaycoLanguage(rawValue: appLanguageRawValue) ?? .korean
+    }
+
+    private var widgetSnapshotSignature: String {
+        ([appLanguageRawValue] + sortedItems.map { item in
+            [
+                item.id.uuidString,
+                item.title,
+                "\(item.date.timeIntervalSinceReferenceDate)",
+                item.typeRawValue,
+                item.repeatRuleRawValue ?? "",
+                "\(item.countStartAsDayOne)",
+                item.displayUnitRawValue,
+                "\(item.isPinned)",
+                "\(item.isShared)",
+                item.cardColorRawValue ?? "",
+                "\(item.sortIndex ?? -1)",
+                "\(item.updatedAt.timeIntervalSinceReferenceDate)"
+            ].joined(separator: "|")
+        })
+        .joined(separator: "\n")
     }
 }
 
@@ -721,6 +775,7 @@ private final class StatusBarBackgroundView: UIView {
 private struct SwipeableDDayCardRow: View {
     let item: DDayItem
     let calculation: DDayCalculation
+    let language: DaycoLanguage
     let editAction: () -> Void
     let reorderAction: () -> Void
     let pinAction: () -> Void
@@ -751,7 +806,7 @@ private struct SwipeableDDayCardRow: View {
         ZStack {
             HStack(spacing: 8) {
                 actionButton(
-                    title: item.isPinned ? "해제" : "고정",
+                    title: item.isPinned ? DaycoText.t("해제") : DaycoText.t("고정"),
                     systemName: item.isPinned ? "pin.slash.fill" : "pin.fill",
                     tint: .orange,
                     progress: leftProgress,
@@ -764,7 +819,7 @@ private struct SwipeableDDayCardRow: View {
                 Spacer(minLength: 0)
 
                 actionButton(
-                    title: "삭제",
+                    title: DaycoText.t("삭제"),
                     systemName: "trash.fill",
                     tint: .red,
                     progress: rightProgress,
@@ -776,7 +831,7 @@ private struct SwipeableDDayCardRow: View {
             }
             .zIndex(0)
 
-            DDayCardView(item: item, calculation: calculation)
+            DDayCardView(item: item, calculation: calculation, language: language)
                 .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .scaleEffect(isPressing ? 0.975 : 1)
                 .offset(x: offset)
@@ -793,13 +848,11 @@ private struct SwipeableDDayCardRow: View {
                         onLongPressBegan: {
                             if abs(offset) < 1 {
                                 isPressing = true
+                                reorderAction()
                             }
                         },
                         onLongPressEnded: {
                             isPressing = false
-                            if abs(offset) < 1 {
-                                reorderAction()
-                            }
                         },
                         onPanBegan: {
                             dragStartOffset = offset
@@ -1081,7 +1134,7 @@ private struct MainHeaderView: View {
             Spacer()
 
             if isReordering {
-                Button("완료", action: doneAction)
+                Button(DaycoText.t("완료"), action: doneAction)
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
                     .padding(.horizontal, 16)
@@ -1090,8 +1143,8 @@ private struct MainHeaderView: View {
                     .padding(.top, 4)
             } else {
                 HStack(spacing: 10) {
-                    HeaderIconButton(systemName: "magnifyingglass", accessibilityLabel: "검색", action: searchAction)
-                    HeaderIconButton(systemName: "bell", accessibilityLabel: "알림", action: notificationAction)
+                    HeaderIconButton(systemName: "magnifyingglass", accessibilityLabel: DaycoText.t("검색"), action: searchAction)
+                    HeaderIconButton(systemName: "bell", accessibilityLabel: DaycoText.t("알림"), action: notificationAction)
                 }
                 .padding(.top, 4)
             }
@@ -1101,15 +1154,15 @@ private struct MainHeaderView: View {
     }
 
     private var formattedToday: String {
-        "오늘 날짜 " + Self.dateFormatter.string(from: .now)
+        DaycoText.t("오늘 날짜") + " " + Self.dateFormatter.string(from: .now)
     }
 
-    private static let dateFormatter: DateFormatter = {
+    private static var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ko_KR")
-        formatter.dateFormat = "yyyy년 M월 d일 EEEE"
+        formatter.locale = Locale(identifier: DaycoText.language.localeIdentifier)
+        formatter.dateFormat = DaycoText.language == .english ? "EEEE, MMM d, yyyy" : "yyyy년 M월 d일 EEEE"
         return formatter
-    }()
+    }
 }
 
 private struct HeaderIconButton: View {
@@ -1123,7 +1176,7 @@ private struct HeaderIconButton: View {
                 .font(.system(size: 23, weight: .semibold))
                 .foregroundStyle(.primary)
                 .frame(width: 34, height: 34)
-                .contentShape(Rectangle())
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
@@ -1138,13 +1191,13 @@ private struct BottomActionBar: View {
     var body: some View {
         HStack(spacing: 28) {
             BottomCircleButton(systemName: "calendar", size: 58, background: Color(.secondarySystemGroupedBackground), action: calendarAction)
-                .accessibilityLabel("달력")
+                .accessibilityLabel(DaycoText.t("달력"))
 
             BottomCircleButton(systemName: "plus", size: 70, background: .tint, action: addAction)
-                .accessibilityLabel("디데이 추가")
+                .accessibilityLabel(DaycoText.t("디데이 추가"))
 
             BottomCircleButton(systemName: "person", size: 58, background: Color(.secondarySystemGroupedBackground), action: profileAction)
-                .accessibilityLabel("개인 설정")
+                .accessibilityLabel(DaycoText.t("개인 설정"))
         }
         .padding(.horizontal, 22)
         .padding(.vertical, 8)
@@ -1202,15 +1255,15 @@ private struct EmptyDDayCard: View {
                 .foregroundStyle(.tint)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("아직 등록된 디데이가 없어요")
+                Text(DaycoText.t("아직 등록된 디데이가 없어요"))
                     .font(.system(size: 22, weight: .bold, design: .rounded))
 
-                Text("중요한 날짜를 추가하고 오늘부터 바로 확인해보세요.")
+                Text(DaycoText.t("중요한 날짜를 추가하고 오늘부터 바로 확인해보세요."))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
-            Button("첫 디데이 추가", action: addAction)
+            Button(DaycoText.t("첫 디데이 추가"), action: addAction)
                 .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1222,15 +1275,12 @@ private struct EmptyDDayCard: View {
 private struct DDayCardView: View {
     let item: DDayItem
     let calculation: DDayCalculation
+    let language: DaycoLanguage
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
-                    Image(systemName: item.isShared ? "person.2.fill" : "person.fill")
-                        .font(.caption)
-                        .foregroundStyle(item.cardSecondaryColor)
-
                     if item.isPinned {
                         Image(systemName: "pin.fill")
                             .font(.caption)
@@ -1250,7 +1300,7 @@ private struct DDayCardView: View {
                     .lineLimit(2)
 
                 Text(calculation.valueText)
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .font(.system(size: 34, weight: .black))
                     .foregroundStyle(item.cardForegroundColor)
                     .monospacedDigit()
                     .minimumScaleFactor(0.75)
@@ -1264,7 +1314,7 @@ private struct DDayCardView: View {
 
                     Spacer()
 
-                    DDayTypeBadge(type: item.type)
+                    DDayTypeBadge(type: item.type, language: language)
                         .font(.caption)
                         .foregroundStyle(item.cardSecondaryColor)
                         .lineLimit(1)
@@ -1289,12 +1339,14 @@ private struct DDayCardView: View {
 
 private struct DDayTypeBadge: View {
     let type: DDayType
+    let language: DaycoLanguage
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: type.symbolName)
             Text(type.title)
         }
+        .id("\(type.rawValue)-\(language.rawValue)")
     }
 }
 
@@ -1339,7 +1391,7 @@ private struct DDaySearchView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(item.title)
                             .foregroundStyle(.primary)
-                        Text(item.date.formatted(.dateTime.year().month().day()))
+                        Text(item.date.formatted(.dateTime.year().month().day().locale(Locale(identifier: DaycoText.language.localeIdentifier))))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -1347,15 +1399,15 @@ private struct DDaySearchView: View {
             }
             .overlay {
                 if filteredItems.isEmpty {
-                    ContentUnavailableView("검색 결과 없음", systemImage: "magnifyingglass")
+                    ContentUnavailableView(DaycoText.t("검색 결과 없음"), systemImage: "magnifyingglass")
                 }
             }
-            .navigationTitle("검색")
+            .navigationTitle(DaycoText.t("검색"))
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $query, prompt: "디데이 이름 검색")
+            .searchable(text: $query, prompt: DaycoText.t("디데이 이름 검색"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("닫기") {
+                    Button(DaycoText.t("닫기")) {
                         dismiss()
                     }
                 }
@@ -1381,50 +1433,60 @@ private struct NotificationInboxView: View {
         NavigationStack {
             List {
                 if notificationRows.isEmpty {
-                    ContentUnavailableView("확인할 알림 없음", systemImage: "bell")
+                    ContentUnavailableView(DaycoText.t("확인할 알림 없음"), systemImage: "bell")
                 } else {
                     ForEach(notificationRows) { row in
                         Button {
                             selectItem(row.item)
                         } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(row.item.title)
-                                    .foregroundStyle(.primary)
-                                Text(row.subtitle)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                            HStack(alignment: .top, spacing: 10) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(row.item.title)
+                                        .foregroundStyle(.primary)
+                                    Text(row.subtitle)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }
                 }
             }
-            .navigationTitle("알림")
+            .navigationTitle(DaycoText.t("알림"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("닫기") {
+                    Button(DaycoText.t("닫기")) {
                         dismiss()
                     }
                 }
             }
             .task {
-                pendingRequests = await UNUserNotificationCenter.current().pendingNotificationRequests()
+                await refreshNotifications()
             }
         }
     }
 
     private var notificationRows: [NotificationRow] {
         let pendingIdentifiers = Set(pendingRequests.map(\.identifier))
+
         return items.flatMap { item in
             item.notificationRules.map { rule in
-                let identifier = "\(item.id.uuidString)-rule-\(rule.rawValue)"
-                let status = pendingIdentifiers.contains(identifier) ? "예약됨" : "알림 규칙"
+                let identifier = NotificationScheduler.notificationIdentifier(for: item, rule: rule)
+                let status = pendingIdentifiers.contains(identifier) ? DaycoText.t("예약됨") : DaycoText.t("알림 규칙")
                 return NotificationRow(
                     item: item,
                     subtitle: "\(item.notificationTitle(for: rule)) · \(status)"
                 )
             }
         }
+        .sorted {
+            return $0.subtitle < $1.subtitle
+        }
+    }
+
+    private func refreshNotifications() async {
+        pendingRequests = await UNUserNotificationCenter.current().pendingNotificationRequests()
     }
 }
 
@@ -1460,7 +1522,7 @@ private struct DDayCalendarView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("디데이 달력")
+            .navigationTitle(DaycoText.t("디데이 달력"))
             .navigationBarTitleDisplayMode(.inline)
             .transaction { transaction in
                 transaction.disablesAnimations = true
@@ -1470,7 +1532,7 @@ private struct DDayCalendarView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("닫기") {
+                    Button(DaycoText.t("닫기")) {
                         dismiss()
                     }
                 }
@@ -1498,7 +1560,7 @@ private struct DDayCalendarView: View {
 
                 Spacer()
 
-                Button("오늘") {
+                Button(DaycoText.t("오늘")) {
                     goToToday()
                 }
                 .font(.caption.weight(.semibold))
@@ -1556,13 +1618,13 @@ private struct DDayCalendarView: View {
     private var selectedDateItemsView: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 10) {
-                Text(selectedDate.formatted(.dateTime.month().day()))
+                Text(selectedDate.formatted(.dateTime.month().day().locale(Locale(identifier: DaycoText.language.localeIdentifier))))
                     .font(.headline)
                     .padding(.horizontal, 18)
                     .padding(.top, 16)
 
                 if selectedDateItems.isEmpty {
-                    Text("등록된 디데이 없음")
+                    Text(DaycoText.t("등록된 디데이 없음"))
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 18)
                         .padding(.vertical, 12)
@@ -1599,7 +1661,7 @@ private struct DDayCalendarView: View {
     }
 
     private var monthTitle: String {
-        displayedMonth.formatted(.dateTime.year().month(.wide))
+        displayedMonth.formatted(.dateTime.year().month(.wide).locale(Locale(identifier: DaycoText.language.localeIdentifier)))
     }
 
     private var calendarDays: [Date] {
@@ -1678,10 +1740,14 @@ private struct DDayCalendarView: View {
     }
 
     private func itemDisplayDate(_ item: DDayItem) -> Date {
-        item.type == .recurring ? calculator.resolvedTargetDate(for: item) : item.date
+        calculator.resolvedTargetDate(for: item)
     }
 
-    private static let weekdaySymbols = Calendar.current.shortStandaloneWeekdaySymbols
+    private static var weekdaySymbols: [String] {
+        var calendar = Calendar.current
+        calendar.locale = Locale(identifier: DaycoText.language.localeIdentifier)
+        return calendar.shortStandaloneWeekdaySymbols
+    }
 }
 
 private struct EventJumpControl: View {
@@ -1704,7 +1770,7 @@ private struct EventJumpControl: View {
                     .lineLimit(1)
                     .frame(height: 18)
 
-                Text(date.formatted(.dateTime.year().month().day()))
+                Text(date.formatted(.dateTime.year().month().day().locale(Locale(identifier: DaycoText.language.localeIdentifier))))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
@@ -1845,6 +1911,8 @@ private extension DDayItem {
             return .yellow
         case .recurring:
             return .darkBlue
+        case .milestone:
+            return .purple
         }
     }
 }
@@ -1858,6 +1926,8 @@ private extension DDayType {
             return DaycoPalette.calendarOrange
         case .recurring:
             return DaycoPalette.vividBlue
+        case .milestone:
+            return DaycoPalette.magenta
         }
     }
 }

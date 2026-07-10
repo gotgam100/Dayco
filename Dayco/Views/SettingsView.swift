@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @AppStorage("appAppearance") private var appAppearanceRawValue = AppAppearance.system.rawValue
     @AppStorage("isICloudBackupEnabled") private var isICloudBackupEnabled = false
+    @AppStorage("appLanguage") private var appLanguageRawValue = DaycoLanguage.korean.rawValue
 
     private var appAppearance: Binding<AppAppearance> {
         Binding {
@@ -14,11 +15,19 @@ struct SettingsView: View {
         }
     }
 
+    private var appLanguage: Binding<DaycoLanguage> {
+        Binding {
+            DaycoLanguage(rawValue: appLanguageRawValue) ?? .korean
+        } set: { newValue in
+            appLanguageRawValue = newValue.rawValue
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                Section("화면") {
-                    Picker("모드", selection: appAppearance) {
+                Section(DaycoText.t("화면")) {
+                    Picker(DaycoText.t("모드"), selection: appAppearance) {
                         ForEach(AppAppearance.allCases) { appearance in
                             Text(appearance.title).tag(appearance)
                         }
@@ -26,20 +35,29 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                 }
 
-                Section("백업") {
-                    Toggle("iCloud 백업", isOn: $isICloudBackupEnabled)
-                    Text("변경한 백업 설정은 앱을 다시 실행한 뒤 적용됩니다.")
+                Section(DaycoText.t("언어 설정")) {
+                    Picker(DaycoText.t("언어"), selection: appLanguage) {
+                        ForEach(DaycoLanguage.allCases) { language in
+                            Text(language.title).tag(language)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Section(DaycoText.t("백업")) {
+                    Toggle(DaycoText.t("iCloud 백업"), isOn: $isICloudBackupEnabled)
+                    Text(DaycoText.t("변경한 백업 설정은 앱을 다시 실행한 뒤 적용됩니다."))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
 
-                Section("앱 정보") {
-                    LabeledContent("버전", value: appVersionText)
+                Section(DaycoText.t("앱 정보")) {
+                    LabeledContent(DaycoText.t("버전"), value: appVersionText)
                     Button {
                         openTermsAndPolicy()
                     } label: {
                         HStack {
-                            Text("이용약관 및 정책")
+                            Text(DaycoText.t("이용약관 및 정책"))
                             Spacer()
                             Image(systemName: "arrow.up.forward.app")
                                 .foregroundStyle(.secondary)
@@ -49,7 +67,7 @@ struct SettingsView: View {
                         openDeveloperApps()
                     } label: {
                         HStack {
-                            Text("개발자의 다른 앱")
+                            Text(DaycoText.t("개발자의 다른 앱"))
                             Spacer()
                             Image(systemName: "arrow.up.forward.app")
                                 .foregroundStyle(.secondary)
@@ -57,11 +75,11 @@ struct SettingsView: View {
                     }
                 }
             }
-            .navigationTitle("설정")
+            .navigationTitle(DaycoText.t("나의 설정"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("완료") {
+                    Button(DaycoText.t("완료")) {
                         dismiss()
                     }
                 }
