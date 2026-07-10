@@ -18,14 +18,9 @@ struct DDayEditorView: View {
     @State private var notificationDate: Date
     @State private var isComposingNotification = false
     @State private var isPinned: Bool
-    @State private var isShared: Bool
-    @State private var sharePermission: SharePermission
     @State private var cardColor: DDayCardColor
     @State private var isConfirmingDelete = false
     @State private var isShowingInvalidPastDateAlert = false
-    @State private var preparedCloudShare: PreparedDaycoCloudShare?
-    @State private var isPreparingCloudShare = false
-    @State private var cloudShareErrorMessage: String?
     @State private var isDeleting = false
 
     init(item: DDayItem? = nil) {
@@ -48,8 +43,6 @@ struct DDayEditorView: View {
             milestoneDay: initialMilestoneDay
         ))
         _isPinned = State(initialValue: item?.isPinned ?? false)
-        _isShared = State(initialValue: item?.isShared ?? false)
-        _sharePermission = State(initialValue: item?.sharePermission ?? .readOnly)
         _cardColor = State(initialValue: item?.cardColor ?? .typeDefault)
     }
 
@@ -157,14 +150,6 @@ struct DDayEditorView: View {
                 Button(DaycoText.t("확인"), role: .cancel) {}
             } message: {
                 Text(DaycoText.t("디데이 유형이 지난 날짜일 때는 오늘보다 과거인 날짜로 설정해야 합니다."))
-            }
-            .alert(DaycoText.t("iCloud 공유를 완료할 수 없습니다"), isPresented: cloudShareErrorBinding) {
-                Button(DaycoText.t("확인"), role: .cancel) {}
-            } message: {
-                Text(cloudShareErrorMessage ?? DaycoText.t("잠시 후 다시 시도해 주세요."))
-            }
-            .sheet(item: $preparedCloudShare) { preparedShare in
-                cloudSharingSheet(preparedShare)
             }
         }
     }
@@ -432,76 +417,6 @@ struct DDayEditorView: View {
         }
     }
 
-    private func cloudSharingSheet(_ preparedShare: PreparedDaycoCloudShare) -> some View {
-        DaycoCloudSharingView(
-            preparedShare: preparedShare,
-            onSave: {
-                item?.isShared = true
-                item?.sharePermission = sharePermission
-                item?.updatedAt = .now
-                try? modelContext.save()
-            },
-            onStopSharing: {
-                item?.isShared = false
-                item?.sharePermission = nil
-                item?.updatedAt = .now
-                try? modelContext.save()
-            },
-            onError: { error in
-                cloudShareErrorMessage = error.localizedDescription
-            }
-        )
-    }
-
-    private func showCloudShareInvite() {
-        guard let item, persistChanges(allowInsert: false) else { return }
-
-        let payload = DaycoSharePayload(item: item)
-        let permission = sharePermission
-        isPreparingCloudShare = true
-
-        DaycoCloudSharingService.prepareShare(
-            payload: payload,
-            permission: permission
-        ) { share, container, error in
-            Task { @MainActor in
-                isPreparingCloudShare = false
-
-                if let error {
-                    cloudShareErrorMessage = error.localizedDescription
-                    return
-                }
-
-                guard let share, let container else {
-                    cloudShareErrorMessage = DaycoText.t("iCloud 공유 정보를 준비하지 못했습니다.")
-                    return
-                }
-
-                guard share.url != nil else {
-                    cloudShareErrorMessage = DaycoCloudSharingError.missingShareURL.localizedDescription
-                    return
-                }
-
-                preparedCloudShare = PreparedDaycoCloudShare(
-                    payload: payload,
-                    share: share,
-                    container: container
-                )
-            }
-        }
-    }
-
-    private var cloudShareErrorBinding: Binding<Bool> {
-        Binding(
-            get: { cloudShareErrorMessage != nil },
-            set: { newValue in
-                if !newValue {
-                    cloudShareErrorMessage = nil
-                }
-            }
-        )
-    }
-
     private func save() {
         guard isValidDateForSelectedType else {
             isShowingInvalidPastDateAlert = true
@@ -665,9 +580,6 @@ struct DDayEditorView: View {
             if DaycoText.language == .english {
                 return rule.day == 0 ? "Same day \(timeText)" : "\(rule.day) days before \(timeText)"
             }
-            if DaycoText.language == .english {
-                return rule.day == 0 ? "Same day \(timeText)" : "\(rule.day) days before \(timeText)"
-            }
             return rule.day == 0 ? "\(DaycoText.t("당일")) \(timeText)" : "\(rule.day)일 전 \(timeText)"
         }
     }
@@ -685,10 +597,6 @@ struct DDayEditorView: View {
             return $0.minute < $1.minute
         }
         isComposingNotification = false
-    }
-
-    private func deleteNotificationRules(at offsets: IndexSet) {
-        notificationRules.remove(atOffsets: offsets)
     }
 
     private func deleteNotificationRule(_ rule: NotificationRule) {

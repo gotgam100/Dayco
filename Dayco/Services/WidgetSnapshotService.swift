@@ -39,6 +39,7 @@ enum WidgetSnapshotService {
             }
 
         DaycoWidgetSnapshotStore.saveSnapshots(snapshots)
+        DaycoWidgetSnapshotStore.saveLanguage(DaycoText.language.rawValue)
         WidgetCenter.shared.reloadTimelines(ofKind: DaycoWidgetConstants.kind)
     }
 }

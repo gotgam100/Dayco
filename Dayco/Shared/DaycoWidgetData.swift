@@ -3,7 +3,28 @@ import Foundation
 enum DaycoWidgetConstants {
     static let appGroupIdentifier = "group.com.seunghwabaek.dayco"
     static let snapshotKey = "dayco.widget.snapshots"
+    static let languageKey = "appLanguage"
     static let kind = "DaycoWidget"
+}
+
+enum DaycoWidgetLanguage: String, Codable {
+    case korean = "ko"
+    case english = "en"
+
+    var localeIdentifier: String {
+        switch self {
+        case .korean: "ko_KR"
+        case .english: "en_US"
+        }
+    }
+
+    func text(_ korean: String, _ english: String) -> String {
+        self == .english ? english : korean
+    }
+
+    func day(_ value: Int) -> String {
+        self == .english ? "\(max(value, 1).formatted()) days" : "\(max(value, 1).formatted())일"
+    }
 }
 
 struct DaycoWidgetSnapshot: Codable, Hashable, Identifiable {
@@ -31,6 +52,7 @@ struct DaycoWidgetCalculation: Hashable {
 
 struct DaycoWidgetCalculator {
     var calendar: Calendar = .current
+    var language: DaycoWidgetLanguage = .korean
 
     func calculate(snapshot: DaycoWidgetSnapshot, now: Date = .now) -> DaycoWidgetCalculation {
         let startOfNow = calendar.startOfDay(for: now)
@@ -42,27 +64,27 @@ struct DaycoWidgetCalculator {
         case "countUp":
             let elapsedDays = -rawDayDelta + (snapshot.countStartAsDayOne ? 1 : 0)
             return DaycoWidgetCalculation(
-                valueText: format(abs(elapsedDays), unitRawValue: snapshot.displayUnitRawValue, suffix: "째", from: startOfTarget, to: startOfNow),
-                caption: "\(formattedDate(startOfTarget))부터",
+                valueText: format(abs(elapsedDays), unitRawValue: snapshot.displayUnitRawValue, suffix: language.text("째", ""), from: startOfTarget, to: startOfNow),
+                caption: language.text("\(formattedDate(startOfTarget))부터", "Since \(formattedDate(startOfTarget))"),
                 dayDelta: elapsedDays
             )
         case "recurring":
             return DaycoWidgetCalculation(
-                valueText: rawDayDelta == 0 ? "오늘" : "D-\(rawDayDelta)",
-                caption: "다음 \(repeatRuleTitle(snapshot.repeatRuleRawValue))",
+                valueText: rawDayDelta == 0 ? language.text("오늘", "Today") : "D-\(rawDayDelta)",
+                caption: language.text("다음 \(repeatRuleTitle(snapshot.repeatRuleRawValue))", "Next \(repeatRuleTitle(snapshot.repeatRuleRawValue))"),
                 dayDelta: rawDayDelta
             )
         case "milestone":
             let milestoneDay = max(snapshot.milestoneDayRawValue ?? 100, 1)
             return DaycoWidgetCalculation(
                 valueText: milestoneValueText(for: rawDayDelta),
-                caption: "\(milestoneDay.formatted())일 기념일",
+                caption: language.text("\(milestoneDay.formatted())일 기념일", "\(milestoneDay.formatted())-day anniversary"),
                 dayDelta: rawDayDelta
             )
         default:
             return DaycoWidgetCalculation(
                 valueText: rawDayDelta == 0 ? "D-Day" : "D-\(max(rawDayDelta, 0))",
-                caption: "\(formattedDate(startOfTarget))까지",
+                caption: language.text("\(formattedDate(startOfTarget))까지", "Until \(formattedDate(startOfTarget))"),
                 dayDelta: rawDayDelta
             )
         }
@@ -91,7 +113,7 @@ struct DaycoWidgetCalculator {
 
     private func milestoneValueText(for rawDayDelta: Int) -> String {
         if rawDayDelta == 0 {
-            return "오늘"
+            return language.text("오늘", "Today")
         }
 
         if rawDayDelta < 0 {
@@ -104,16 +126,19 @@ struct DaycoWidgetCalculator {
     private func format(_ days: Int, unitRawValue: String, suffix: String, from start: Date, to end: Date) -> String {
         switch unitRawValue {
         case "hours":
-            return "\((days * 24).formatted())시간\(suffix)"
+            return language.text("\((days * 24).formatted())시간\(suffix)", "\((days * 24).formatted()) hours")
         case "minutes":
-            return "\((days * 24 * 60).formatted())분\(suffix)"
+            return language.text("\((days * 24 * 60).formatted())분\(suffix)", "\((days * 24 * 60).formatted()) minutes")
         case "daysAndHours":
-            return "\(days.formatted())일 0시간\(suffix)"
+            return language.text("\(days.formatted())일 0시간\(suffix)", "\(days.formatted()) days 0 hours")
         case "yearsMonthsDays":
             let components = calendar.dateComponents([.year, .month, .day], from: start, to: end)
-            return "\(components.year ?? 0)년 \(components.month ?? 0)개월 \(components.day ?? 0)일\(suffix)"
+            return language.text(
+                "\(components.year ?? 0)년 \(components.month ?? 0)개월 \(components.day ?? 0)일\(suffix)",
+                "\(components.year ?? 0)y \(components.month ?? 0)m \(components.day ?? 0)d"
+            )
         default:
-            return "\(days.formatted())일\(suffix)"
+            return language.text("\(days.formatted())일\(suffix)", "\(days.formatted()) days")
         }
     }
 
@@ -155,11 +180,14 @@ struct DaycoWidgetCalculator {
     }
 
     private func formattedDate(_ date: Date) -> String {
-        date.formatted(.dateTime.year().month(.twoDigits).day(.twoDigits))
+        date.formatted(.dateTime.year().month(.twoDigits).day(.twoDigits).locale(Locale(identifier: language.localeIdentifier)))
     }
 
     private func repeatRuleTitle(_ rawValue: String?) -> String {
-        rawValue == "monthly" ? "매월" : "매년"
+        if rawValue == "monthly" {
+            return language.text("매월", "Monthly")
+        }
+        return language.text("매년", "Yearly")
     }
 }
 
@@ -177,6 +205,14 @@ enum DaycoWidgetSnapshotStore {
             return
         }
         userDefaults.set(data, forKey: DaycoWidgetConstants.snapshotKey)
+    }
+
+    static func loadLanguage() -> DaycoWidgetLanguage {
+        DaycoWidgetLanguage(rawValue: userDefaults.string(forKey: DaycoWidgetConstants.languageKey) ?? "") ?? .korean
+    }
+
+    static func saveLanguage(_ languageRawValue: String) {
+        userDefaults.set(languageRawValue, forKey: DaycoWidgetConstants.languageKey)
     }
 
     private static var userDefaults: UserDefaults {

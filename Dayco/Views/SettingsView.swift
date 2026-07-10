@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -20,6 +21,8 @@ struct SettingsView: View {
             DaycoLanguage(rawValue: appLanguageRawValue) ?? .korean
         } set: { newValue in
             appLanguageRawValue = newValue.rawValue
+            DaycoWidgetSnapshotStore.saveLanguage(newValue.rawValue)
+            WidgetCenter.shared.reloadTimelines(ofKind: DaycoWidgetConstants.kind)
         }
     }
 

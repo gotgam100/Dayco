@@ -5,6 +5,7 @@ import WidgetKit
 struct DaycoWidgetEntry: TimelineEntry {
     let date: Date
     let snapshots: [DaycoWidgetSnapshot]
+    let language: DaycoWidgetLanguage
 }
 
 struct DaycoWidgetSelection: AppEntity {
@@ -36,7 +37,7 @@ struct DaycoWidgetSelectionQuery: EntityQuery {
         DaycoWidgetSnapshotStore.loadSnapshots().map { snapshot in
             DaycoWidgetSelection(
                 id: snapshot.id.uuidString,
-                title: snapshot.title.isEmpty ? "이름 없는 디데이" : snapshot.title
+                title: snapshot.title.isEmpty ? DaycoWidgetSnapshotStore.loadLanguage().text("이름 없는 디데이", "Untitled D-Day") : snapshot.title
             )
         }
     }
@@ -52,18 +53,23 @@ struct DaycoWidgetConfigurationIntent: WidgetConfigurationIntent {
 
 struct DaycoWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> DaycoWidgetEntry {
-        DaycoWidgetEntry(date: .now, snapshots: Self.previewSnapshots)
+        DaycoWidgetEntry(date: .now, snapshots: Self.previewSnapshots, language: DaycoWidgetSnapshotStore.loadLanguage())
     }
 
     func snapshot(for configuration: DaycoWidgetConfigurationIntent, in context: Context) async -> DaycoWidgetEntry {
         let snapshots = DaycoWidgetSnapshotStore.loadSnapshots()
+        let language = DaycoWidgetSnapshotStore.loadLanguage()
         let selectedSnapshots = selectedSnapshots(from: snapshots, configuration: configuration)
-        return DaycoWidgetEntry(date: .now, snapshots: selectedSnapshots.isEmpty ? Self.previewSnapshots : selectedSnapshots)
+        return DaycoWidgetEntry(date: .now, snapshots: selectedSnapshots.isEmpty ? Self.previewSnapshots : selectedSnapshots, language: language)
     }
 
     func timeline(for configuration: DaycoWidgetConfigurationIntent, in context: Context) async -> Timeline<DaycoWidgetEntry> {
         let snapshots = DaycoWidgetSnapshotStore.loadSnapshots()
-        let entry = DaycoWidgetEntry(date: .now, snapshots: selectedSnapshots(from: snapshots, configuration: configuration))
+        let entry = DaycoWidgetEntry(
+            date: .now,
+            snapshots: selectedSnapshots(from: snapshots, configuration: configuration),
+            language: DaycoWidgetSnapshotStore.loadLanguage()
+        )
         let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: .now) ?? .now.addingTimeInterval(1800)
         return Timeline(entries: [entry], policy: .after(nextUpdate))
     }
@@ -128,9 +134,9 @@ struct DaycoWidgetView: View {
     var body: some View {
         Group {
             if entry.snapshots.isEmpty {
-                EmptyWidgetView()
+                EmptyWidgetView(language: entry.language)
             } else {
-                SingleCardWidgetView(snapshot: entry.snapshots[0], family: family)
+                SingleCardWidgetView(snapshot: entry.snapshots[0], family: family, language: entry.language)
             }
         }
         .containerBackground(Color.clear, for: .widget)
@@ -140,12 +146,12 @@ struct DaycoWidgetView: View {
 struct SingleCardWidgetView: View {
     let snapshot: DaycoWidgetSnapshot
     let family: WidgetFamily
-
-    private let calculator = DaycoWidgetCalculator()
+    let language: DaycoWidgetLanguage
 
     var body: some View {
+        let calculator = DaycoWidgetCalculator(language: language)
         let calculation = calculator.calculate(snapshot: snapshot)
-        DDayWidgetCard(snapshot: snapshot, calculation: calculation, family: family)
+        DDayWidgetCard(snapshot: snapshot, calculation: calculation, family: family, language: language)
     }
 }
 
@@ -153,6 +159,7 @@ struct DDayWidgetCard: View {
     let snapshot: DaycoWidgetSnapshot
     let calculation: DaycoWidgetCalculation
     let family: WidgetFamily
+    let language: DaycoWidgetLanguage
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -183,7 +190,7 @@ struct DDayWidgetCard: View {
 
                 Spacer(minLength: 0)
 
-                Text(snapshot.title.isEmpty ? "이름 없는 디데이" : snapshot.title)
+                Text(snapshot.title.isEmpty ? language.text("이름 없는 디데이", "Untitled D-Day") : snapshot.title)
                     .font(titleFont)
                     .foregroundStyle(primaryTextColor)
                     .lineLimit(isSmall ? 2 : 1)
@@ -208,10 +215,10 @@ struct DDayWidgetCard: View {
 
     private var typeTitle: String {
         switch snapshot.typeRawValue {
-        case "countUp": "지난 날짜"
-        case "recurring": "반복"
-        case "milestone": "기념일"
-        default: "남은 날짜"
+        case "countUp": language.text("지난 날짜", "Elapsed")
+        case "recurring": language.text("반복", "Recurring")
+        case "milestone": language.text("기념일", "Anniversary")
+        default: language.text("남은 날짜", "Remaining")
         }
     }
 
@@ -328,11 +335,13 @@ struct DDayWidgetCard: View {
 }
 
 struct EmptyWidgetView: View {
+    let language: DaycoWidgetLanguage
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Dayco")
                 .font(.headline.weight(.black))
-            Text("디데이를 추가하면\n여기에 표시돼요")
+            Text(language.text("디데이를 추가하면\n여기에 표시돼요", "Add a D-Day\nto see it here"))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             Spacer()
@@ -366,5 +375,5 @@ struct DaycoWidget: Widget {
 #Preview(as: .systemSmall) {
     DaycoWidget()
 } timeline: {
-    DaycoWidgetEntry(date: .now, snapshots: DaycoWidgetProvider.previewSnapshots)
+    DaycoWidgetEntry(date: .now, snapshots: DaycoWidgetProvider.previewSnapshots, language: .korean)
 }
